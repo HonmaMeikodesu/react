@@ -184,12 +184,14 @@ const classComponentUpdater = {
     const fiber = getInstance(inst);
     const currentTime = requestCurrentTimeForUpdate();
     const suspenseConfig = requestCurrentSuspenseConfig();
+
     const expirationTime = computeExpirationForFiber(
       currentTime,
       fiber,
       suspenseConfig,
     );
 
+    // whmm 构建更新数据payload
     const update = createUpdate(expirationTime, suspenseConfig);
     update.payload = payload;
     if (callback !== undefined && callback !== null) {
@@ -199,6 +201,8 @@ const classComponentUpdater = {
       update.callback = callback;
     }
 
+    // whmm 将payload推进Fiber Node的updateQueue
+    // 这样当前Fiber Node变成unitOfWork时可以对其updateQueue进行检查
     enqueueUpdate(fiber, update);
     scheduleWork(fiber, expirationTime);
   },

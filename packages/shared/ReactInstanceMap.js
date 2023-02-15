@@ -6,6 +6,7 @@
  */
 
 /**
+ * whmm 说人话，维护着一份ReactComponent和对应FiberNode的映射关系
  * `ReactInstanceMap` maintains a mapping from a public facing stateful
  * instance (key) and the internal representation (value). This allows public
  * methods to accept the user facing instance as an argument and map them back

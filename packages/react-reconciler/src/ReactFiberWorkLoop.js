@@ -200,7 +200,12 @@ const BatchedContext = /*               */ 0b000001;
 const EventContext = /*                 */ 0b000010;
 const DiscreteEventContext = /*         */ 0b000100;
 const LegacyUnbatchedContext = /*       */ 0b001000;
+/** whmm 当前处于render phase，遍历WorkInProgress Tree，逐个清空组件updateQueue，re-render
+* 与旧Fiber tree同一位置做对比决定是否复用Fiber Node，计算effect list
+*/
 const RenderContext = /*                */ 0b010000;
+/** whmm 当前处于commit phase，将从WorkInProgress Tree生成出来的新Fiber tree应用到UI界面上
+*/
 const CommitContext = /*                */ 0b100000;
 
 type RootExitStatus = 0 | 1 | 2 | 3 | 4 | 5;
@@ -296,13 +301,19 @@ let currentEventTime: ExpirationTime = NoWork;
 export function requestCurrentTimeForUpdate() {
   if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
     // We're inside React, so it's fine to read the actual time.
+    // whmm 准入条件：当前执行上下文处于Render phase或者Commit phase
+    // whmm 当前时间CPU已被React占用，直接读取时间
+    // now指的是页面从打开到当前经过了多长时间(毫秒级别)
     return msToExpirationTime(now());
   }
   // We're not inside React, so we may be in the middle of a browser event.
   if (currentEventTime !== NoWork) {
+    // whmm CPU使用权不在React手上（主线程），可能浏览器在处理其他事情（用户拖拽，图形渲染）
     // Use the same start time for all updates until we enter React again.
     return currentEventTime;
   }
+
+  // 当前时间是0，从0开始做更新
   // This is the first update since React yielded. Compute a new start time.
   currentEventTime = msToExpirationTime(now());
   return currentEventTime;
@@ -328,6 +339,7 @@ export function computeExpirationForFiber(
   }
 
   if ((executionContext & RenderContext) !== NoContext) {
+    // whmm 假如当前已经在render阶段，则直接返回renderExpirationTime
     // Use whatever time we're already rendering
     // TODO: Should there be a way to opt out, like with `runWithPriority`?
     return renderExpirationTime;
@@ -344,10 +356,12 @@ export function computeExpirationForFiber(
     // Compute an expiration time based on the Scheduler priority.
     switch (priorityLevel) {
       case ImmediatePriority:
+        // whmm 最高优先级，不惜一切代价立即更新，将过期时间调到最大
         expirationTime = Sync;
         break;
       case UserBlockingPriority:
         // TODO: Rename this to computeUserBlockingExpiration
+        // whmm 以可能阻碍用户交互流畅为代价的前提，将过期时间调成较大
         expirationTime = computeInteractiveExpiration(currentTime);
         break;
       case NormalPriority:

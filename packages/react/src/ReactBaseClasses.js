@@ -32,7 +32,8 @@ Component.prototype.isReactComponent = {};
 /**
  * Sets a subset of the state. Always use this to mutate
  * state. You should treat `this.state` as immutable.
- *
+ * whmm setState”不保证“数据能够立刻更新并且应用到UI界面上
+ * 但是”不保证“恰恰暗示了setState不是所谓的”异步更新“
  * There is no guarantee that `this.state` will be immediately updated, so
  * accessing `this.state` after calling this method may return the old value.
  *

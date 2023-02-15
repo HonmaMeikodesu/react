@@ -538,6 +538,9 @@ export function cloneElement(element, config, children) {
 }
 
 /**
+ * whmm ReactElement是一个plain object，代表着组件配置，包含$$typeof, type, key, ref, props等属性，是JSX语法以及React.createElement的返回值
+ * ReactNode是ReactElement的父集
+ * ReactComponent根据ReactElement配置生成的组件实例，包含了ref, context, _reactInternalFiber等实例属性
  * Verifies the object is a ReactElement.
  * See https://reactjs.org/docs/react-api.html#isvalidelement
  * @param {?object} object
