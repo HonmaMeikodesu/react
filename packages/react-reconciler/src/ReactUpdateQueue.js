@@ -213,8 +213,10 @@ export function enqueueUpdate<State>(fiber: Fiber, update: Update<State>) {
   const pending = sharedQueue.pending;
   if (pending === null) {
     // This is the first update. Create a circular list.
+    // whmm 第一次更新，构建循环链表
     update.next = update;
   } else {
+    // whmm 应用在同一个Fiber上的更多个更新，将当前update置在链表的首个节点
     update.next = pending.next;
     pending.next = update;
   }

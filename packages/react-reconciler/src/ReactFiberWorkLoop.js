@@ -301,19 +301,19 @@ let currentEventTime: ExpirationTime = NoWork;
 export function requestCurrentTimeForUpdate() {
   if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
     // We're inside React, so it's fine to read the actual time.
-    // whmm 准入条件：当前执行上下文处于Render phase或者Commit phase
-    // whmm 当前时间CPU已被React占用，直接读取时间
-    // now指的是页面从打开到当前经过了多长时间(毫秒级别)
+    // whmm 当前执行上下文处于Render phase或者Commit phase，则代表React此时占用着CPU，直接读取系统当前时间返回
+    // now是performance.show的shimmed版本(毫秒级别)
     return msToExpirationTime(now());
   }
   // We're not inside React, so we may be in the middle of a browser event.
   if (currentEventTime !== NoWork) {
-    // whmm CPU使用权不在React手上（主线程），可能浏览器在处理其他事情（用户拖拽，图形渲染）
+    // whmm 已经有currentEventTime，但是当前执行上下文处于Render phase和Commit phase以外，说明此时CPU使用权不在React（主线程）手上，可能浏览器在处理其他事情（用户拖拽，图形渲染）
+    // 读取currentEventTime返回，代表React消耗的时间被停止
     // Use the same start time for all updates until we enter React again.
     return currentEventTime;
   }
 
-  // 当前时间是0，从0开始做更新
+  // whmm 从0开始做更新
   // This is the first update since React yielded. Compute a new start time.
   currentEventTime = msToExpirationTime(now());
   return currentEventTime;
@@ -330,6 +330,7 @@ export function computeExpirationForFiber(
 ): ExpirationTime {
   const mode = fiber.mode;
   if ((mode & BlockingMode) === NoMode) {
+    // whmm 假如不是BlockingMode，直接返回最大的值（Sync）
     return Sync;
   }
 
@@ -339,7 +340,7 @@ export function computeExpirationForFiber(
   }
 
   if ((executionContext & RenderContext) !== NoContext) {
-    // whmm 假如当前已经在render阶段，则直接返回renderExpirationTime
+    // whmm 假如当前已经在render阶段，返回renderExpirationTime作为expirationTime
     // Use whatever time we're already rendering
     // TODO: Should there be a way to opt out, like with `runWithPriority`?
     return renderExpirationTime;
@@ -394,6 +395,7 @@ export function scheduleUpdateOnFiber(
   fiber: Fiber,
   expirationTime: ExpirationTime,
 ) {
+  // whmm 检查是否存在死循环更新
   checkForNestedUpdates();
   warnAboutRenderPhaseUpdatesInDEV(fiber);
 
@@ -471,14 +473,17 @@ function markUpdateTimeFromFiberToRoot(fiber, expirationTime) {
   if (fiber.expirationTime < expirationTime) {
     fiber.expirationTime = expirationTime;
   }
+  // whmm 当前Fiber的copy版本，来源于老的Fiber Tree
   let alternate = fiber.alternate;
   if (alternate !== null && alternate.expirationTime < expirationTime) {
     alternate.expirationTime = expirationTime;
   }
   // Walk the parent path to the root and update the child expiration time.
+  // whmm 从当前Fiber往上面的parent遍历，将parent的每个儿子更新到大于等于parent的expirationTime
   let node = fiber.return;
   let root = null;
   if (node === null && fiber.tag === HostRoot) {
+    // whmm fiber.stateNode是当前snapshot下Fiber对应的ReactComponent实例
     root = fiber.stateNode;
   } else {
     while (node !== null) {
@@ -509,6 +514,9 @@ function markUpdateTimeFromFiberToRoot(fiber, expirationTime) {
     if (workInProgressRoot === root) {
       // Received an update to a tree that's in the middle of rendering. Mark
       // that's unprocessed work on this root.
+      // whmm 当前已经处于Render phase，通知WorkInProgress Root有一个未处理的任务进来了
+      // Flutter直接禁止了在Render phase触发setState，这是与React的差异点
+      // TODO 思考二者在此处的设计，背后的原理？
       markUnprocessedUpdateTime(expirationTime);
 
       if (workInProgressRootExitStatus === RootSuspendedWithDelay) {
@@ -529,6 +537,7 @@ function markUpdateTimeFromFiberToRoot(fiber, expirationTime) {
       }
     }
     // Mark that the root has a pending update.
+    // whmm 标记当前FiberRootNode有更新任务待执行
     markRootUpdatedAtTime(root, expirationTime);
   }
 

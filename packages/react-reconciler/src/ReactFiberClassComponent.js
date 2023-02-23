@@ -182,9 +182,11 @@ const classComponentUpdater = {
   isMounted,
   enqueueSetState(inst, payload, callback) {
     const fiber = getInstance(inst);
+    // whmm 当前时刻距离发起React更新经历了多少时间
     const currentTime = requestCurrentTimeForUpdate();
     const suspenseConfig = requestCurrentSuspenseConfig();
 
+    // 更新任务应在expirationTime到来之前被完成
     const expirationTime = computeExpirationForFiber(
       currentTime,
       fiber,
@@ -201,9 +203,10 @@ const classComponentUpdater = {
       update.callback = callback;
     }
 
-    // whmm 将payload推进Fiber Node的updateQueue
+    // whmm 将payload推进Fiber Node的updateQueue.shared.pending队列（是一个由update构成的循环单向链表）
     // 这样当前Fiber Node变成unitOfWork时可以对其updateQueue进行检查
     enqueueUpdate(fiber, update);
+    
     scheduleWork(fiber, expirationTime);
   },
   enqueueReplaceState(inst, payload, callback) {
